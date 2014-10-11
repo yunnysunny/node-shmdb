@@ -1,0 +1,1 @@
+node-gyp configure build --msvs_version=2012
