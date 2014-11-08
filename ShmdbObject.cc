@@ -5,7 +5,7 @@ extern "C" {
 }
 #include "ShmdbObject.h"
 #include <stdio.h>
-
+#include <stdlib.h>
 
 
 using namespace v8;
