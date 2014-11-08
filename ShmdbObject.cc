@@ -39,13 +39,6 @@ void ShmdbObject::Init(Handle<Object> module) {
 	module->Set(String::NewSymbol("exports"), constructor);
 }
 
-/* char *ShmdbObject::getBuffer(Local<String> str) {
-	Local<String> str2 = str->ToString();
-	int strLen = str2.Utf8Length();
-	char *strBuffer = new char[strLen+1];
-	str2.WriteUtf8(strBuffer,strLen);
-	return strBuffer;
-} */
 
 Handle<Value> ShmdbObject::New(const Arguments& args/*js中的参数*/) {
   HandleScope scope;
@@ -54,14 +47,7 @@ Handle<Value> ShmdbObject::New(const Arguments& args/*js中的参数*/) {
   obj->_length = args[0]->IsUndefined() ? 128 : args[0]->NumberValue()/*将js中的参数转化为c++类型*/;
   printf("num:%d\n",obj->_length);
   int rv = shmdb_initParent(&obj->_handle,obj->_length);
-  if (rv == 0) {
-	STHashShareMemHead head;
-	rv = shmdb_getInfo(&obj->_handle,&head);
-	if (rv == 0) {
-		printf("=======totalLen:%d,baseLen:%d\n",head.totalLen,head.baseLen);
-	} else {
-		printf("========shmdb_getInfo %x\n",rv);
-	}
+  if (rv == 0) {	
 	obj->hasInit = true;
   } else {
 	obj->hasInit = false;
@@ -78,7 +64,7 @@ Handle<Value> ShmdbObject::showInfo(const Arguments& args) {
   ShmdbObject* obj = ObjectWrap::Unwrap<ShmdbObject>(args.This());//将js对象转化为c++对象
   if (obj->hasInit) {
 	STHashShareMemHead head;
-	printf("_length:%d\n handle.shmid:%d\n",obj->_length,obj->_handle.shmid);
+	//printf("_length:%d\n handle.shmid:%d\n",obj->_length,obj->_handle.shmid);
 	int rv = shmdb_getInfo(&obj->_handle,&head);
 	if (rv == 0) {
 		printf("totalLen:%d,baseLen:%d\n",head.totalLen,head.baseLen);
@@ -97,7 +83,7 @@ Handle<Value> ShmdbObject::initChild(const v8::Arguments& args) {
 	Local<Object> result = Object::New();
 	ShmdbObject* obj = ObjectWrap::Unwrap<ShmdbObject>(args.This());
 	if (obj->hasInit) {
-		//printf("_length:%d\n handle.shmid:%d\n",obj->_length,obj->_handle.shmid);
+
 		int rv = shmdb_initChild(&obj->_handle);
 		result->Set(String::NewSymbol("code"), Number::New(rv));
 	} else {
@@ -113,25 +99,22 @@ Handle<Value> ShmdbObject::put(const v8::Arguments& args) {
 	ShmdbObject* obj = ObjectWrap::Unwrap<ShmdbObject>(args.This());
 	if (obj->hasInit) {
 		if (args.Length() == 2) {
-			//char *keyBuffer = getBuffer(args[0]->ToString());
-			//char *valueBuffer = getBuffer(args[1]->ToString());
+
 			v8::String::Utf8Value keyStr(args[0]->ToString());
 			int keyLen = keyStr.length();
 			char *keyBuffer = *keyStr;
-			//keyStr.WriteUtf8(keyBuffer,keyLen);
 			
 			v8::String::Utf8Value  valueStr(args[1]->ToString());
 			int valueLen = valueStr.length();
 			char *valueBuffer = *valueStr;
-			//valueStr.WriteUtf8(valueBuffer,valueLen);
-			printf("before put\n");
+
+			//printf("before put\n");
 			int rv = shmdb_put(&obj->_handle,keyBuffer,(unsigned short)keyLen,
 				valueBuffer,(unsigned short)valueLen);
-			printf("after put result:%x\n",rv);
+			//printf("after put result:%x\n",rv);
 				
 			result->Set(String::NewSymbol("code"), Number::New(rv));
-			//delete keyBuffer;
-			//delete valueBuffer;
+
 		} else {
 			result->Set(String::NewSymbol("code"), Number::New(ERROR_PRARAM_ERROR));
 		}		
@@ -156,10 +139,10 @@ Handle<Value> ShmdbObject::get(const v8::Arguments& args) {
 	v8::String::Utf8Value keyStr(args[0]->ToString());
 	int keyLen = keyStr.length();
 	char *keyBuffer = *keyStr;
-	printf("before get\n");
+	//printf("before get\n");
 	int rv = shmdb_get(&obj->_handle,keyBuffer,(unsigned short)keyLen,
 				&valueBuffer,&valueLen);
-	printf("after get %x\n",rv);
+	//printf("after get %x\n",rv);
 	if (rv == 0) {
 		Local<String> str = String::New(valueBuffer,valueLen);
 		result->Set(String::NewSymbol("data"),str);
