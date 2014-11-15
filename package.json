@@ -1,0 +1,36 @@
+{
+  "name": "shmdb",
+  "version": "0.1.0",
+  "keywords":[
+	"share memory",
+	"shmdb",
+	"multi-process"
+  ],
+  "description": "A key/value embedded database  aimed at resolving the problem of sharing memory among multi-process.",
+  "scripts": {
+    "install": "node-gyp rebuild"
+  },
+  "author": {
+    "name": "yunnysunny",
+    "email": "yunnysunny@gmail.com"
+  },
+  "contributors": [
+    {
+      "name": "yunnysunny",
+	  "email": "yunnysunny@gmail.com"
+    }
+  ],
+  "repository": 
+  {
+	"type": "git",
+	"url": "https://github.com/yunnysunny/node-shmdb.git"
+  },
+	  
+  "bugs": {
+    "url": "https://github.com/yunnysunny/node-shmdb/issues"
+  },
+  "homepage": "https://github.com/yunnysunny/node-shmdb",
+  "main": "index.js",
+  "readmeFilename": "README.md"
+  
+}
