@@ -86,6 +86,7 @@ Initializing shmdb in parent process or child process.It return an instance of C
 
 - {Number|Object} `param`  Using `Number` in parent process,it will create the shared memery in operation system,and return the two variable，`shmid` and `semid`,which will be used in child process.Using `Object` in child process,and its format should be `{shmid:Number,semid:Number}`,the `shmid` and `semid` can be 
 obtained from parent process.
+
 **return**
 
 - {Shmdb} its prototies are as follows:
