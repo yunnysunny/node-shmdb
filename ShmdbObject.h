@@ -24,8 +24,6 @@ class ShmdbObject : public node::ObjectWrap {
 	
 	// static char *getBuffer(v8::Local<v8::String>);
 	static v8::Handle<v8::Value> New(const v8::Arguments& args);
-	static v8::Handle<v8::Value> showInfo(const v8::Arguments& args);
-	static v8::Handle<v8::Value> initChild(const v8::Arguments& args);
 	static v8::Handle<v8::Value> put(const v8::Arguments& args);
 	static v8::Handle<v8::Value> get(const v8::Arguments& args);
 	static v8::Handle<v8::Value> remove(const v8::Arguments& args);
@@ -34,6 +32,7 @@ class ShmdbObject : public node::ObjectWrap {
 	
 	unsigned int _length;
 	STHashShareHandle _handle;
+
 	bool hasInit;
 };
 

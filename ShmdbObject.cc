@@ -6,8 +6,6 @@ extern "C" {
 #include "ShmdbObject.h"
 #include <stdio.h>
 
-
-
 using namespace v8;
 
 ShmdbObject::ShmdbObject() {
@@ -19,15 +17,12 @@ void ShmdbObject::Init(Handle<Object> module) {
 	// Prepare constructor template
 	Local<FunctionTemplate> tpl = FunctionTemplate::New(New);//使用ShmdbObject::New函数作为构造函数
 	tpl->SetClassName(String::NewSymbol("ShmdbObject"));//js中的类名为ShmdbObject
-	tpl->InstanceTemplate()->SetInternalFieldCount(3);//指定js类的字段个数
+	tpl->InstanceTemplate()->SetInternalFieldCount(5);//指定js类的字段个数
 	// Prototype
 	Local< ObjectTemplate > prototypeTpl = tpl->PrototypeTemplate();
-	prototypeTpl->Set(String::NewSymbol("showInfo"),//js类的成员函数名为plusOne
-		FunctionTemplate::New(showInfo)->GetFunction());//js类的成员处理函数
-	prototypeTpl->Set(String::NewSymbol("initChild"),
-		FunctionTemplate::New(initChild)->GetFunction());
-	prototypeTpl->Set(String::NewSymbol("put"),
-		FunctionTemplate::New(put)->GetFunction());  
+
+	prototypeTpl->Set(String::NewSymbol("put"),//js类的成员函数名为put
+		FunctionTemplate::New(put)->GetFunction());  //js类的成员处理函数
 	prototypeTpl->Set(String::NewSymbol("get"),
 		FunctionTemplate::New(get)->GetFunction());		
 	prototypeTpl->Set(String::NewSymbol("remove"),
@@ -41,57 +36,58 @@ void ShmdbObject::Init(Handle<Object> module) {
 
 
 Handle<Value> ShmdbObject::New(const Arguments& args/*js中的参数*/) {
-  HandleScope scope;
-
-  ShmdbObject* obj = new ShmdbObject();
-  obj->_length = args[0]->IsUndefined() ? 128 : args[0]->NumberValue()/*将js中的参数转化为c++类型*/;
-  printf("num:%d\n",obj->_length);
-  int rv = shmdb_initParent(&obj->_handle,obj->_length);
-  if (rv == 0) {	
-	obj->hasInit = true;
-  } else {
-	obj->hasInit = false;
-  }
-  
-  obj->Wrap(args.This()/*将c++对象转化为js对象*/);
-
-  return args.This();//返回这个js对象
-}
-
-Handle<Value> ShmdbObject::showInfo(const Arguments& args) {
-  HandleScope scope;
-
-  ShmdbObject* obj = ObjectWrap::Unwrap<ShmdbObject>(args.This());//将js对象转化为c++对象
-  if (obj->hasInit) {
-	STHashShareMemHead head;
-	//printf("_length:%d\n handle.shmid:%d\n",obj->_length,obj->_handle.shmid);
-	int rv = shmdb_getInfo(&obj->_handle,&head);
-	if (rv == 0) {
-		printf("totalLen:%d,baseLen:%d\n",head.totalLen,head.baseLen);
-	} else {
-		printf("shmdb_getInfo %x\n",rv);
-	}
-  } else {
-	printf("shmdb has not inited\n");
-  }
-  
-  return scope.Close(Number::New(obj->_length)/*转化为js中的数字*/);
-}
-
-Handle<Value> ShmdbObject::initChild(const v8::Arguments& args) {
 	HandleScope scope;
-	Local<Object> result = Object::New();
-	ShmdbObject* obj = ObjectWrap::Unwrap<ShmdbObject>(args.This());
-	if (obj->hasInit) {
 
-		int rv = shmdb_initChild(&obj->_handle);
-		result->Set(String::NewSymbol("code"), Number::New(rv));
-	} else {
-		result->Set(String::NewSymbol("code"), Number::New(ERROR_NOT_INIT));
-		printf("shmdb has not inited\n");
+	ShmdbObject* obj = new ShmdbObject();
+	obj->hasInit = false;
+	Local<Value> param = args[0];
+	bool needCreate = true;
+	int rv = -1;
+	unsigned int _shmid;
+	unsigned int _semid;
+	if (param->IsUndefined()) {
+		obj->_length = 128;
+	} else if (param->IsNumber()) {
+		obj->_length = param->NumberValue();/*将js中的参数转化为c++类型*/
+	} else if (param->IsObject()) {
+		needCreate = false;
+		Local<Object> option = param->ToObject();
+		_shmid = option->Get(String::NewSymbol("shmid"))->NumberValue();
+		_semid = option->Get(String::NewSymbol("semid"))->NumberValue();
 	}
-	return scope.Close(result);
+	
+	if (needCreate) {
+		rv = shmdb_initParent(&obj->_handle,obj->_length);
+		if (rv == 0) {	
+			obj->hasInit = true;
+			_shmid = (unsigned int)obj->_handle.shmid;
+			_semid = (unsigned int)obj->_handle.semid;
+			printf("[New]_length int:%d,shmid int:%d,semid int:%d\n",obj->_length,_shmid,_semid);
+			//printf("shmid *int:%d,semid *int:%d\n",*(obj->shmid),*(obj->semid));
+		} else {
+			obj->hasInit = false;
+		}
+	} else {
+		obj->_handle.shmid = (HANDLE)_shmid;
+		obj->_handle.semid = (HANDLE)_semid;
+		rv = shmdb_initChild(&obj->_handle);
+		if (rv == 0) {
+			obj->hasInit = true;
+		}
+	}
+	
+
+	obj->Wrap(args.This()/*将c++对象转化为js对象*/);
+	args.This()->Set(String::NewSymbol("rv"),Number::New(rv));
+	if (rv == 0) {
+		args.This()->Set(String::NewSymbol("shmid"),Number::New(_shmid));
+		args.This()->Set(String::NewSymbol("semid"),Number::New(_semid));
+	}
+	
+
+	return args.This();//返回这个js对象
 }
+
 
 Handle<Value> ShmdbObject::put(const v8::Arguments& args) {
 	HandleScope scope;
