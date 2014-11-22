@@ -13,7 +13,7 @@ First,use variable.
 	}
 Varivale `a` will get the value `1` in child process.But when you assign the value of `a` in one of process, the other process can not get the new value.In other words, it suit for readonly varivale.
 
-Send,using event message to notify the other process.
+Second,using event message to notify the other process.
 
 	var cluster = require('cluster'); 
 
@@ -142,7 +142,7 @@ Remove an pair of key/value by key.
 
 **description**
 
-Destory the shared memery allocated when you the function `shmdb`.When process exit,this function will be called auto.
+Destory the shared memery allocated when you call the function `shmdb`.When process exit,this function will be called auto.
 
 **parameter**
 
@@ -152,3 +152,8 @@ Destory the shared memery allocated when you the function `shmdb`.When process e
 
 - {Object} {code:Number} when success the `code` will be zero.
 
+## contributors
+[yunnysunny](https://github.com/yunnysunny) (maintainer)
+
+## license
+[Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html)
