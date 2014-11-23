@@ -2,6 +2,7 @@
 #include <node.h>
 extern "C" {
 #include "mm.h"
+#include "log.h"
 }
 #include "ShmdbObject.h"
 #include <stdio.h>
@@ -46,6 +47,7 @@ Handle<Value> ShmdbObject::New(const Arguments& args/*js中的参数*/) {
 	int rv = -1;
 	unsigned int _shmid;
 	unsigned int _semid;
+	
 	if (param->IsUndefined()) {
 		obj->_length = 128;
 	} else if (param->IsNumber()) {
@@ -55,10 +57,23 @@ Handle<Value> ShmdbObject::New(const Arguments& args/*js中的参数*/) {
 		Local<Object> option = param->ToObject();
 		_shmid = option->Get(String::NewSymbol("shmid"))->NumberValue();
 		_semid = option->Get(String::NewSymbol("semid"))->NumberValue();
-	}
+	}	
 	
 	if (needCreate) {
-		rv = shmdb_initParent(&obj->_handle,obj->_length);
+		STShmdbOption shmdbOption;
+		memset(&shmdbOption,0,sizeof(shmdbOption));
+		shmdbOption.logLevel = LEVEL_WARN;
+		if (args.Length() == 2) {
+			Local<Value> optionParam = args[1];
+			if (optionParam->IsObject() && !optionParam->IsNull()) {
+				Local<Value> logLevel = optionParam->ToObject()->Get(String::NewSymbol("logLevel"));
+				if (logLevel->IsNumber()) {
+					shmdbOption.logLevel = logLevel->NumberValue();
+				}				
+			}
+		}
+		
+		rv = shmdb_initParent(&obj->_handle,obj->_length,&shmdbOption);
 		if (rv == 0) {	
 			obj->hasInit = true;
 			_shmid = (unsigned int)obj->_handle.shmid;
