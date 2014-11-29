@@ -37,8 +37,10 @@ typedef struct ValueAreaData {
 #define LEN_GLOBAL_ERROR_MSG 256
 #define OPERATION_GET			1
 #define OPERATION_DELETE		2
-static char globalErrorMsg[LEN_GLOBAL_ERROR_MSG] = {0};
+//static char globalErrorMsg[LEN_GLOBAL_ERROR_MSG] = {0};
 static STHashShareHandle *handleBackup = NULL;
+static int isParent = 1;
+
 #if __IS_WIN__
 typedef void (*SignalHandlerPointer)(int);
 
@@ -50,15 +52,22 @@ static void print_reason(int sig)
 		case SIGFPE:
 		case SIGILL:
 		case SIGABRT: {
-
+			SIM_ERROR("crash occurred.");
 			shmdb_dump(handleBackup,"crash.dump");
-			shmdb_destroy(handleBackup);
+			if (isParent == 1) {
+				shmdb_destroy(handleBackup);
+			}
+			
 			exit(-1);
 		}
 		break;
 		case SIGINT: {
-			SIM_TRACE("normal exit\n");
-			shmdb_destroy(handleBackup);
+
+			SIM_INFO("normal exit\n");
+			if (isParent == 1) {
+				shmdb_destroy(handleBackup);
+			}
+
 			exit(0);
 		}
 		break;
@@ -85,25 +94,33 @@ static void print_reason(int sig, siginfo_t * info, void *secret)
 		size_t i;
 		size = backtrace(array, 10);
 		strings = backtrace_symbols(array, size);
-		SIM_TRACE("Obtained %zd stack frames.\n", size);
+		SIM_ERROR("Obtained %zd stack frames.\n", size);
 		for (i = 0; i < size; i++)
-		SIM_TRACE("%s\n", strings[i]);
+		SIM_ERROR("%s\n", strings[i]);
+
 		free(strings);
 #else
-		int fd = open("err.log", "w+");
+		int fd = open("err.log", O_WRONLY);
 		size = backtrace(array, 10);
 		backtrace_symbols_fd(array, size, fd);
 		close(fd);
 #endif
 		shmdb_dump(handleBackup,"crash.dump");
-		shmdb_destroy(handleBackup);
+
+		if (isParent == 1) {
+			shmdb_destroy(handleBackup);
+		}
+
 		exit(-1);
 		}
 		break;
 		case SIGINT:
 		case SIGKILL: {
-			SIM_TRACE("normal exit\n");
-			shmdb_destroy(handleBackup);
+
+			SIM_INFO("normal exit\n");
+			if (isParent == 1) {
+				shmdb_destroy(handleBackup);
+			}
 			exit(0);
 		}
 		break;
@@ -168,10 +185,11 @@ static void addEvent() {
  * initialize the share memory and semaphore in parent process.
  * @param [in] STHashShareHandle *handle
  * @param [in] unsigned int size the base size,which is the value of baseLenBytes
+ * @param [in] STShmdbOption *option
  *
  * @return int the result
  */
-int shmdb_initParent(STHashShareHandle *handle,unsigned int size)
+int shmdb_initParent(STHashShareHandle *handle,unsigned int size,STShmdbOption *option)
 {
 	int rv;	
 	
@@ -188,7 +206,11 @@ int shmdb_initParent(STHashShareHandle *handle,unsigned int size)
 #if __IS_WIN__	
 	SECURITY_ATTRIBUTES sa;
 #endif	
-	
+
+	if (option != NULL) {
+		setLogLevel(option->logLevel);
+	}	
+
 
 	space = (maxPrime * 2);//total index count
 	totalLen = space;
@@ -309,6 +331,8 @@ int shmdb_initChild(STHashShareHandle *handle)
 		handle->shmaddr = shm_addr;
 
 		handleBackup = handle;
+
+		isParent = 0;
 
 		addEvent();
 	}
@@ -812,7 +836,7 @@ int shmdb_dump(STHashShareHandle *handle,char *path) {
 		}
 		
 	}
-	return 0;
+	return rv;
 }
 /**
 * destroy the shmdb,it will remove the shared memory form the system.
