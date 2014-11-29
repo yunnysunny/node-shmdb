@@ -7,7 +7,11 @@ if (obj.rv == 0) {
 	console.log('get',obj.get('key')); 
 	console.log('remove',obj.remove('key'));
 	console.log('get:',obj.get('key'));
-	console.log('============================');
+	obj = null;
+	var i = 1;
+	setInterval(function(){
+		console.log(i++);
+	},1000);
 } else {
 	console.error('create shmdb error:['+obj.rv+']');
 }

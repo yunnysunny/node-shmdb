@@ -32,7 +32,7 @@ class ShmdbObject : public node::ObjectWrap {
 	
 	unsigned int _length;
 	STHashShareHandle _handle;
-
+	bool _isParent;
 	bool hasInit;
 };
 

@@ -1,4 +1,4 @@
-#define BUILDING_NODE_EXTENSION
+//#define BUILDING_NODE_EXTENSION
 #include <node.h>
 extern "C" {
 #include "mm.h"
@@ -12,8 +12,14 @@ using namespace v8;
 
 ShmdbObject::ShmdbObject() {
 	hasInit = false;
+	_isParent = false;
 };
-ShmdbObject::~ShmdbObject() {};
+ShmdbObject::~ShmdbObject() {
+	if (_isParent && hasInit) {
+		printf("destroy the shmdb.\n");
+		shmdb_destroy(&_handle);
+	}
+};
 
 void ShmdbObject::Init(Handle<Object> module) {
 	// Prepare constructor template
@@ -45,8 +51,8 @@ Handle<Value> ShmdbObject::New(const Arguments& args/*js中的参数*/) {
 	Local<Value> param = args[0];
 	bool needCreate = true;
 	int rv = -1;
-	unsigned int _shmid;
-	unsigned int _semid;
+	unsigned int _shmid = 0;
+	unsigned int _semid = 0;
 	
 	if (param->IsUndefined()) {
 		obj->_length = 128;
@@ -63,6 +69,7 @@ Handle<Value> ShmdbObject::New(const Arguments& args/*js中的参数*/) {
 		STShmdbOption shmdbOption;
 		memset(&shmdbOption,0,sizeof(shmdbOption));
 		shmdbOption.logLevel = LEVEL_WARN;
+		obj->_isParent = true;
 		if (args.Length() == 2) {
 			Local<Value> optionParam = args[1];
 			if (optionParam->IsObject() && !optionParam->IsNull()) {
