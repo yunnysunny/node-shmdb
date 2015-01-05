@@ -1,6 +1,6 @@
 {
   "name": "shmdb",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "keywords":[
 	"share memory",
 	"shmdb",
@@ -31,6 +31,6 @@
   },
   "homepage": "https://github.com/yunnysunny/node-shmdb",
   "main": "index.js",
-  "readmeFilename": "README.md"
+  "readmeFilename": "readme.md"
   
 }
