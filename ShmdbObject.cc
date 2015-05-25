@@ -1,5 +1,6 @@
 //#define BUILDING_NODE_EXTENSION
 #include <node.h>
+#include <nan.h>
 extern "C" {
 #include "mm.h"
 #include "log.h"
@@ -24,28 +25,30 @@ ShmdbObject::~ShmdbObject() {
 
 void ShmdbObject::Init(Handle<Object> module) {
 	// Prepare constructor template
-	Local<FunctionTemplate> tpl = FunctionTemplate::New(New);//使用ShmdbObject::New函数作为构造函数
-	tpl->SetClassName(String::NewSymbol("ShmdbObject"));//js中的类名为ShmdbObject
+	Local<FunctionTemplate> tpl = NanNew<FunctionTemplate>(New);//使用ShmdbNanNew<Object>函数作为构造函数
+	tpl->SetClassName(NanNew<String>("ShmdbObject"));//js中的类名为ShmdbObject
 	tpl->InstanceTemplate()->SetInternalFieldCount(5);//指定js类的字段个数
 	// Prototype
 	Local< ObjectTemplate > prototypeTpl = tpl->PrototypeTemplate();
 
-	prototypeTpl->Set(String::NewSymbol("put"),//js类的成员函数名为put
-		FunctionTemplate::New(put)->GetFunction());  //js类的成员处理函数
-	prototypeTpl->Set(String::NewSymbol("get"),
-		FunctionTemplate::New(get)->GetFunction());		
-	prototypeTpl->Set(String::NewSymbol("remove"),
-		FunctionTemplate::New(remove)->GetFunction());	
-	prototypeTpl->Set(String::NewSymbol("destroy"),
-		FunctionTemplate::New(destroy)->GetFunction());	
+	prototypeTpl->Set(NanNew<String>("put"),//js类的成员函数名为put
+		NanNew<FunctionTemplate>(put)->GetFunction());  //js类的成员处理函数
+	prototypeTpl->Set(NanNew<String>("get"),
+		NanNew<FunctionTemplate>(get)->GetFunction());		
+	prototypeTpl->Set(NanNew<String>("remove"),
+		NanNew<FunctionTemplate>(remove)->GetFunction());	
+	prototypeTpl->Set(NanNew<String>("destroy"),
+		NanNew<FunctionTemplate>(destroy)->GetFunction());	
 
-	Persistent<Function> constructor = Persistent<Function>::New/*New等价于js中的new*/(tpl->GetFunction());//new一个js实例
-	module->Set(String::NewSymbol("exports"), constructor);
+	//Persistent<Function> constructor = Persistent<Function>::New/*New等价于js中的new*/(tpl->GetFunction());//new一个js实例
+	Persistent<Function> constructor;
+	NanAssignPersistent(constructor,tpl->GetFunction());
+	module->Set(NanNew<String>("exports"), constructor);
 }
 
 
-Handle<Value> ShmdbObject::New(const Arguments& args/*js中的参数*/) {
-	HandleScope scope;
+NAN_METHOD(ShmdbObject::New) {
+	NanScope();
 
 	ShmdbObject* obj = new ShmdbObject();
 	obj->hasInit = false;
@@ -62,8 +65,8 @@ Handle<Value> ShmdbObject::New(const Arguments& args/*js中的参数*/) {
 	} else if (param->IsObject()) {
 		needCreate = false;
 		Local<Object> option = param->ToObject();
-		_shmid = option->Get(String::NewSymbol("shmid"))->NumberValue();
-		_semid = option->Get(String::NewSymbol("semid"))->NumberValue();
+		_shmid = option->Get(NanNew<String>("shmid"))->NumberValue();
+		_semid = option->Get(NanNew<String>("semid"))->NumberValue();
 	}	
 	
 	if (needCreate) {
@@ -74,7 +77,7 @@ Handle<Value> ShmdbObject::New(const Arguments& args/*js中的参数*/) {
 		if (args.Length() == 2) {
 			Local<Value> optionParam = args[1];
 			if (optionParam->IsObject() && !optionParam->IsNull()) {
-				Local<Value> logLevel = optionParam->ToObject()->Get(String::NewSymbol("logLevel"));
+				Local<Value> logLevel = optionParam->ToObject()->Get(NanNew<String>("logLevel"));
 				if (logLevel->IsNumber()) {
 					shmdbOption.logLevel = logLevel->NumberValue();
 				}				
@@ -102,20 +105,20 @@ Handle<Value> ShmdbObject::New(const Arguments& args/*js中的参数*/) {
 	
 
 	obj->Wrap(args.This()/*将c++对象转化为js对象*/);
-	args.This()->Set(String::NewSymbol("rv"),Number::New(rv));
+	args.This()->Set(NanNew<String>("rv"),Number::New(rv));
 	if (rv == 0) {
-		args.This()->Set(String::NewSymbol("shmid"),Number::New(_shmid));
-		args.This()->Set(String::NewSymbol("semid"),Number::New(_semid));
+		args.This()->Set(NanNew<String>("shmid"),Number::New(_shmid));
+		args.This()->Set(NanNew<String>("semid"),Number::New(_semid));
 	}
 	
 
-	return args.This();//返回这个js对象
+	NanReturnThis();//返回这个js对象
 }
 
 
-Handle<Value> ShmdbObject::put(const v8::Arguments& args) {
-	HandleScope scope;
-	Local<Object> result = Object::New();
+NAN_METHOD(ShmdbObject::put) {
+	NanScope();
+	Local<Object> result = NanNew<Object>();
 	ShmdbObject* obj = ObjectWrap::Unwrap<ShmdbObject>(args.This());
 	if (obj->hasInit) {
 		if (args.Length() == 2) {
@@ -133,26 +136,26 @@ Handle<Value> ShmdbObject::put(const v8::Arguments& args) {
 				valueBuffer,(unsigned short)valueLen);
 			//printf("after put result:%x\n",rv);
 				
-			result->Set(String::NewSymbol("code"), Number::New(rv));
+			result->Set(NanNew<String>("code"), Number::New(rv));
 
 		} else {
-			result->Set(String::NewSymbol("code"), Number::New(ERROR_PRARAM_ERROR));
+			result->Set(NanNew<String>("code"), Number::New(ERROR_PRARAM_ERROR));
 		}		
 	} else {
-		result->Set(String::NewSymbol("code"), Number::New(ERROR_NOT_INIT));
+		result->Set(NanNew<String>("code"), Number::New(ERROR_NOT_INIT));
 		printf("shmdb has not inited\n");
 	}
-	return scope.Close(result);
+	NanReturnValue(result);
 }
 
-Handle<Value> ShmdbObject::get(const v8::Arguments& args) {
-	HandleScope scope;
-	Local<Object> result = Object::New();
+NAN_METHOD(ShmdbObject::get) {
+	NanScope();
+	Local<Object> result = NanNew<Object>();
 	ShmdbObject* obj = ObjectWrap::Unwrap<ShmdbObject>(args.This());
 	if (!obj->hasInit) {
-		result->Set(String::NewSymbol("code"), Number::New(ERROR_NOT_INIT));
+		result->Set(NanNew<String>("code"), Number::New(ERROR_NOT_INIT));
 		printf("shmdb has not inited\n");
-		return scope.Close(result);
+		NanReturnValue(result);
 	}
 	char *valueBuffer = NULL;
 	unsigned short valueLen = 0;
@@ -165,21 +168,21 @@ Handle<Value> ShmdbObject::get(const v8::Arguments& args) {
 	//printf("after get %x\n",rv);
 	if (rv == 0) {
 		Local<String> str = String::New(valueBuffer,valueLen);
-		result->Set(String::NewSymbol("data"),str);
+		result->Set(NanNew<String>("data"),str);
 		free(valueBuffer);
 	}
-	result->Set(String::NewSymbol("code"), Number::New(rv));
-	return scope.Close(result);
+	result->Set(NanNew<String>("code"), Number::New(rv));
+	NanReturnValue(result);
 }
 
-Handle<Value> ShmdbObject::remove(const v8::Arguments& args) {
-	HandleScope scope;
-	Local<Object> result = Object::New();
+NAN_METHOD(ShmdbObject::remove) {
+	NanScope();
+	Local<Object> result = NanNew<Object>();
 	ShmdbObject* obj = ObjectWrap::Unwrap<ShmdbObject>(args.This());
 	if (!obj->hasInit) {
-		result->Set(String::NewSymbol("code"), Number::New(ERROR_NOT_INIT));
+		result->Set(NanNew<String>("code"), Number::New(ERROR_NOT_INIT));
 		printf("shmdb has not inited\n");
-		return scope.Close(result);
+		NanReturnValue(result);
 	}
 	
 	char *valueBuffer = NULL;
@@ -193,25 +196,25 @@ Handle<Value> ShmdbObject::remove(const v8::Arguments& args) {
 	
 	if (rv == 0) {
 		Local<String> str = String::New(valueBuffer,valueLen);
-		result->Set(String::NewSymbol("data"),str);
+		result->Set(NanNew<String>("data"),str);
 		free(valueBuffer);
 	}
-	result->Set(String::NewSymbol("code"), Number::New(rv));
-	return scope.Close(result);	
+	result->Set(NanNew<String>("code"), Number::New(rv));
+	NanReturnValue(result);	
 }
 
-Handle<Value> ShmdbObject::destroy(const v8::Arguments& args) {
-	HandleScope scope;
-	Local<Object> result = Object::New();
+NAN_METHOD(ShmdbObject::destroy) {
+	NanScope();
+	Local<Object> result = NanNew<Object>();
 	ShmdbObject* obj = ObjectWrap::Unwrap<ShmdbObject>(args.This());
 	if (!obj->hasInit) {
-		result->Set(String::NewSymbol("code"), Number::New(ERROR_NOT_INIT));
+		result->Set(NanNew<String>("code"), Number::New(ERROR_NOT_INIT));
 		printf("shmdb has not inited\n");
-		return scope.Close(result);
+		NanReturnValue(result);
 	}
 	int rv = shmdb_destroy(&obj->_handle);
-	result->Set(String::NewSymbol("code"), Number::New(rv));
-	return scope.Close(result);	
+	result->Set(NanNew<String>("code"), Number::New(rv));
+	NanReturnValue(result);	
 }
 
 

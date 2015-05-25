@@ -3,7 +3,9 @@
         {
             "target_name" : "shmdb",
             "include_dirs" : [
-                "include", "./extenal/shmdb/include"
+				"<!(node -e \"require('nan')\")",
+                "include",
+				"./extenal/shmdb/include"
             ],
             
             

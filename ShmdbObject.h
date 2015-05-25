@@ -2,6 +2,7 @@
 #define MYOBJECT_H
 
 #include <node.h>
+#include <nan.h>
 #include "platform.h"
 #if __IS_WIN__
 #include <windows.h>
@@ -23,12 +24,12 @@ class ShmdbObject : public node::ObjectWrap {
 	~ShmdbObject();
 	
 	// static char *getBuffer(v8::Local<v8::String>);
-	static v8::Handle<v8::Value> New(const v8::Arguments& args);
-	static v8::Handle<v8::Value> put(const v8::Arguments& args);
-	static v8::Handle<v8::Value> get(const v8::Arguments& args);
-	static v8::Handle<v8::Value> remove(const v8::Arguments& args);
-	static v8::Handle<v8::Value> dump(const v8::Arguments& args);
-	static v8::Handle<v8::Value> destroy(const v8::Arguments& args);
+	static NAN_METHOD(New);
+	static NAN_METHOD(put);
+	static NAN_METHOD(get);
+	static NAN_METHOD(remove);
+	static NAN_METHOD(dump);
+	static NAN_METHOD(destroy);
 	
 	unsigned int _length;
 	STHashShareHandle _handle;
