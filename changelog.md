@@ -1,3 +1,5 @@
+- 0.3.0
+update nan to 2.5
 - 0.2.0
 use [nan](https://github.com/nodejs/nan "") to call node c++ api.
 - 0.1.2

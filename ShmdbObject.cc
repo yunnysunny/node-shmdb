@@ -1,16 +1,16 @@
-//#define BUILDING_NODE_EXTENSION
-#include <node.h>
-#include <nan.h>
+#include "ShmdbObject.h"
 extern "C" {
 #include "mm.h"
 #include "log.h"
 }
-#include "ShmdbObject.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 using namespace v8;
+
+Nan::Persistent<Function> ShmdbObject::constructor;
 
 ShmdbObject::ShmdbObject() {
 	hasInit = false;
@@ -25,34 +25,33 @@ ShmdbObject::~ShmdbObject() {
 
 void ShmdbObject::Init(Handle<Object> module) {
 	// Prepare constructor template
-	Local<FunctionTemplate> tpl = NanNew<FunctionTemplate>(New);//使用ShmdbNanNew<Object>函数作为构造函数
-	tpl->SetClassName(NanNew<String>("ShmdbObject"));//js中的类名为ShmdbObject
+	Local<FunctionTemplate> tpl = Nan::New<FunctionTemplate>(New);//使用ShmdbNan::New<Object>函数作为构造函数
+	tpl->SetClassName(Nan::New<String>("ShmdbObject").ToLocalChecked());//js中的类名为ShmdbObject
 	tpl->InstanceTemplate()->SetInternalFieldCount(5);//指定js类的字段个数
 	// Prototype
 	Local< ObjectTemplate > prototypeTpl = tpl->PrototypeTemplate();
 
-	prototypeTpl->Set(NanNew<String>("put"),//js类的成员函数名为put
-		NanNew<FunctionTemplate>(put)->GetFunction());  //js类的成员处理函数
-	prototypeTpl->Set(NanNew<String>("get"),
-		NanNew<FunctionTemplate>(get)->GetFunction());		
-	prototypeTpl->Set(NanNew<String>("remove"),
-		NanNew<FunctionTemplate>(remove)->GetFunction());	
-	prototypeTpl->Set(NanNew<String>("destroy"),
-		NanNew<FunctionTemplate>(destroy)->GetFunction());	
+	prototypeTpl->Set(Nan::New<String>("put").ToLocalChecked(),//js类的成员函数名为put
+		Nan::New<FunctionTemplate>(put)->GetFunction());  //js类的成员处理函数
+	prototypeTpl->Set(Nan::New<String>("get").ToLocalChecked(),
+		Nan::New<FunctionTemplate>(get)->GetFunction());		
+	prototypeTpl->Set(Nan::New<String>("remove").ToLocalChecked(),
+		Nan::New<FunctionTemplate>(remove)->GetFunction());	
+	prototypeTpl->Set(Nan::New<String>("destroy").ToLocalChecked(),
+		Nan::New<FunctionTemplate>(destroy)->GetFunction());	
 
 	//Persistent<Function> constructor = Persistent<Function>::New/*New等价于js中的new*/(tpl->GetFunction());//new一个js实例
-	Persistent<Function> constructor;
-	NanAssignPersistent(constructor,tpl->GetFunction());
-	module->Set(NanNew<String>("exports"), constructor);
+	constructor.Reset(tpl->GetFunction());
+	module->Set(Nan::New<String>("exports").ToLocalChecked(), tpl->GetFunction());
 }
 
 
 NAN_METHOD(ShmdbObject::New) {
-	NanScope();
+
 
 	ShmdbObject* obj = new ShmdbObject();
 	obj->hasInit = false;
-	Local<Value> param = args[0];
+	Local<Value> param = info[0];
 	bool needCreate = true;
 	int rv = -1;
 	unsigned int _shmid = 0;
@@ -65,8 +64,8 @@ NAN_METHOD(ShmdbObject::New) {
 	} else if (param->IsObject()) {
 		needCreate = false;
 		Local<Object> option = param->ToObject();
-		_shmid = option->Get(NanNew<String>("shmid"))->NumberValue();
-		_semid = option->Get(NanNew<String>("semid"))->NumberValue();
+		_shmid = option->Get(Nan::New<String>("shmid").ToLocalChecked())->NumberValue();
+		_semid = option->Get(Nan::New<String>("semid").ToLocalChecked())->NumberValue();
 	}	
 	
 	if (needCreate) {
@@ -74,10 +73,10 @@ NAN_METHOD(ShmdbObject::New) {
 		memset(&shmdbOption,0,sizeof(shmdbOption));
 		shmdbOption.logLevel = LEVEL_WARN;
 		obj->_isParent = true;
-		if (args.Length() == 2) {
-			Local<Value> optionParam = args[1];
+		if (info.Length() == 2) {
+			Local<Value> optionParam = info[1];
 			if (optionParam->IsObject() && !optionParam->IsNull()) {
-				Local<Value> logLevel = optionParam->ToObject()->Get(NanNew<String>("logLevel"));
+				Local<Value> logLevel = optionParam->ToObject()->Get(Nan::New<String>("logLevel").ToLocalChecked());
 				if (logLevel->IsNumber()) {
 					shmdbOption.logLevel = logLevel->NumberValue();
 				}				
@@ -104,30 +103,30 @@ NAN_METHOD(ShmdbObject::New) {
 	}
 	
 
-	obj->Wrap(args.This()/*将c++对象转化为js对象*/);
-	args.This()->Set(NanNew<String>("rv"),Number::New(rv));
+	obj->Wrap(info.This()/*将c++对象转化为js对象*/);
+	info.This()->Set(Nan::New<String>("rv").ToLocalChecked(),Nan::New<Number>(rv));
 	if (rv == 0) {
-		args.This()->Set(NanNew<String>("shmid"),Number::New(_shmid));
-		args.This()->Set(NanNew<String>("semid"),Number::New(_semid));
+		info.This()->Set(Nan::New<String>("shmid").ToLocalChecked(),Nan::New<Number>(_shmid));
+		info.This()->Set(Nan::New<String>("semid").ToLocalChecked(),Nan::New<Number>(_semid));
 	}
 	
 
-	NanReturnThis();//返回这个js对象
+	info.GetReturnValue().Set(info.This());//返回这个js对象
 }
 
 
 NAN_METHOD(ShmdbObject::put) {
-	NanScope();
-	Local<Object> result = NanNew<Object>();
-	ShmdbObject* obj = ObjectWrap::Unwrap<ShmdbObject>(args.This());
-	if (obj->hasInit) {
-		if (args.Length() == 2) {
 
-			v8::String::Utf8Value keyStr(args[0]->ToString());
+	Local<Object> result = Nan::New<Object>();
+	ShmdbObject* obj = ObjectWrap::Unwrap<ShmdbObject>(info.Holder());
+	if (obj->hasInit) {
+		if (info.Length() == 2) {
+
+			v8::String::Utf8Value keyStr(info[0]->ToString());
 			int keyLen = keyStr.length();
 			char *keyBuffer = *keyStr;
 			
-			v8::String::Utf8Value  valueStr(args[1]->ToString());
+			v8::String::Utf8Value  valueStr(info[1]->ToString());
 			int valueLen = valueStr.length();
 			char *valueBuffer = *valueStr;
 
@@ -136,30 +135,30 @@ NAN_METHOD(ShmdbObject::put) {
 				valueBuffer,(unsigned short)valueLen);
 			//printf("after put result:%x\n",rv);
 				
-			result->Set(NanNew<String>("code"), Number::New(rv));
+			result->Set(Nan::New<String>("code").ToLocalChecked(), Nan::New<Number>(rv));
 
 		} else {
-			result->Set(NanNew<String>("code"), Number::New(ERROR_PRARAM_ERROR));
+			result->Set(Nan::New<String>("code").ToLocalChecked(), Nan::New<Number>(ERROR_PRARAM_ERROR));
 		}		
 	} else {
-		result->Set(NanNew<String>("code"), Number::New(ERROR_NOT_INIT));
+		result->Set(Nan::New<String>("code").ToLocalChecked(), Nan::New<Number>(ERROR_NOT_INIT));
 		printf("shmdb has not inited\n");
 	}
-	NanReturnValue(result);
+	info.GetReturnValue().Set(result);//todo
 }
 
 NAN_METHOD(ShmdbObject::get) {
-	NanScope();
-	Local<Object> result = NanNew<Object>();
-	ShmdbObject* obj = ObjectWrap::Unwrap<ShmdbObject>(args.This());
+
+	Local<Object> result = Nan::New<Object>();
+	ShmdbObject* obj = ObjectWrap::Unwrap<ShmdbObject>(info.This());
 	if (!obj->hasInit) {
-		result->Set(NanNew<String>("code"), Number::New(ERROR_NOT_INIT));
+		result->Set(Nan::New<String>("code").ToLocalChecked(), Nan::New<Number>(ERROR_NOT_INIT));
 		printf("shmdb has not inited\n");
-		NanReturnValue(result);
+		return info.GetReturnValue().Set(result);
 	}
 	char *valueBuffer = NULL;
 	unsigned short valueLen = 0;
-	v8::String::Utf8Value keyStr(args[0]->ToString());
+	v8::String::Utf8Value keyStr(info[0]->ToString());
 	int keyLen = keyStr.length();
 	char *keyBuffer = *keyStr;
 	//printf("before get\n");
@@ -167,27 +166,27 @@ NAN_METHOD(ShmdbObject::get) {
 				&valueBuffer,&valueLen);
 	//printf("after get %x\n",rv);
 	if (rv == 0) {
-		Local<String> str = String::New(valueBuffer,valueLen);
-		result->Set(NanNew<String>("data"),str);
+		Local<String> str = Nan::NewOneByteString((uint8_t *)valueBuffer,valueLen).ToLocalChecked();
+		result->Set(Nan::New<String>("data").ToLocalChecked(),str);
 		free(valueBuffer);
 	}
-	result->Set(NanNew<String>("code"), Number::New(rv));
-	NanReturnValue(result);
+	result->Set(Nan::New<String>("code").ToLocalChecked(), Nan::New<Number>(rv));
+	info.GetReturnValue().Set(result);
 }
 
 NAN_METHOD(ShmdbObject::remove) {
-	NanScope();
-	Local<Object> result = NanNew<Object>();
-	ShmdbObject* obj = ObjectWrap::Unwrap<ShmdbObject>(args.This());
+
+	Local<Object> result = Nan::New<Object>();
+	ShmdbObject* obj = ObjectWrap::Unwrap<ShmdbObject>(info.This());
 	if (!obj->hasInit) {
-		result->Set(NanNew<String>("code"), Number::New(ERROR_NOT_INIT));
+		result->Set(Nan::New<String>("code").ToLocalChecked(), Nan::New<Number>(ERROR_NOT_INIT));
 		printf("shmdb has not inited\n");
-		NanReturnValue(result);
+		return info.GetReturnValue().Set(result);
 	}
 	
 	char *valueBuffer = NULL;
 	unsigned short valueLen = 0;
-	v8::String::Utf8Value keyStr(args[0]->ToString());
+	v8::String::Utf8Value keyStr(info[0]->ToString());
 	int keyLen = keyStr.length();
 	char *keyBuffer = *keyStr;
 	
@@ -195,26 +194,26 @@ NAN_METHOD(ShmdbObject::remove) {
 				&valueBuffer,&valueLen);
 	
 	if (rv == 0) {
-		Local<String> str = String::New(valueBuffer,valueLen);
-		result->Set(NanNew<String>("data"),str);
+		Local<String> str = Nan::NewOneByteString((uint8_t *)valueBuffer,valueLen).ToLocalChecked();
+		result->Set(Nan::New<String>("data").ToLocalChecked(),str);
 		free(valueBuffer);
 	}
-	result->Set(NanNew<String>("code"), Number::New(rv));
-	NanReturnValue(result);	
+	result->Set(Nan::New<String>("code").ToLocalChecked(), Nan::New<Number>(rv));
+	info.GetReturnValue().Set(result);	
 }
 
 NAN_METHOD(ShmdbObject::destroy) {
-	NanScope();
-	Local<Object> result = NanNew<Object>();
-	ShmdbObject* obj = ObjectWrap::Unwrap<ShmdbObject>(args.This());
+
+	Local<Object> result = Nan::New<Object>();
+	ShmdbObject* obj = ObjectWrap::Unwrap<ShmdbObject>(info.This());
 	if (!obj->hasInit) {
-		result->Set(NanNew<String>("code"), Number::New(ERROR_NOT_INIT));
+		result->Set(Nan::New<String>("code").ToLocalChecked(), Nan::New<Number>(ERROR_NOT_INIT));
 		printf("shmdb has not inited\n");
-		NanReturnValue(result);
+		return info.GetReturnValue().Set(result);
 	}
 	int rv = shmdb_destroy(&obj->_handle);
-	result->Set(NanNew<String>("code"), Number::New(rv));
-	NanReturnValue(result);	
+	result->Set(Nan::New<String>("code").ToLocalChecked(), Nan::New<Number>(rv));
+	info.GetReturnValue().Set(result);	
 }
 
 

@@ -1,11 +1,10 @@
 #ifndef MYOBJECT_H
 #define MYOBJECT_H
 
-#include <node.h>
 #include <nan.h>
 #include "platform.h"
 #if __IS_WIN__
-#include <windows.h>
+//#include <windows.h>
 #else
 #endif
 extern "C" {
@@ -30,6 +29,7 @@ class ShmdbObject : public node::ObjectWrap {
 	static NAN_METHOD(remove);
 	static NAN_METHOD(dump);
 	static NAN_METHOD(destroy);
+    static Nan::Persistent<v8::Function> constructor;
 	
 	unsigned int _length;
 	STHashShareHandle _handle;
